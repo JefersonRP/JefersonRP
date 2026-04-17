@@ -175,7 +175,7 @@
 
     function buildCheckoutMessage() {
         const cart = loadCart();
-        const lines = ['Hola Rafael, quiero hacer este pedido:'];
+        const lines = ['Hola Rafael 👋, quiero hacer este pedido:'];
         let sum = 0;
         Object.keys(cart).forEach(id => {
             const p = getProduct(id);
@@ -183,9 +183,12 @@
             const qty = cart[id];
             const sub = p.price * qty;
             sum += sub;
-            lines.push(`- ${qty} × ${p.name} (${p.weight}) — S/ ${sub}`);
+            lines.push(`• ${qty} × ${p.name} (${p.weight}) — S/ ${sub}`);
         });
-        lines.push(`Total: S/ ${sum}`);
+        lines.push('');
+        lines.push(`*Total: S/ ${sum}*`);
+        lines.push('');
+        lines.push('¿Puedo recogerlo en persona 🏪 o prefieres coordinar envío 📦? Quedo atento.');
         return lines.join('\n');
     }
 
