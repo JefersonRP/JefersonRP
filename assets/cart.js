@@ -173,23 +173,110 @@
         document.getElementById('drawerOverlay')?.classList.remove('active');
     }
 
+    // Formatea números como precio: "25" -> "25.00"
+    function fmtPrice(n) {
+        return Number(n).toFixed(2);
+    }
+
+    // Genera una referencia corta para el pedido: "R-260417-7A3B"
+    function makeOrderRef() {
+        const d = new Date();
+        const ymd =
+            String(d.getFullYear()).slice(2) +
+            String(d.getMonth() + 1).padStart(2, '0') +
+            String(d.getDate()).padStart(2, '0');
+        const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+        return `R-${ymd}-${rand}`;
+    }
+
+    // Fecha y hora amigables para la cabecera del pedido (es-PE).
+    function fmtDateTime() {
+        try {
+            return new Date().toLocaleString('es-PE', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch (_) {
+            return new Date().toISOString().slice(0, 16).replace('T', ' ');
+        }
+    }
+
+    // Numeración visual con emojis del 1 al 10; después cae a texto plano.
+    const NUM_EMOJIS = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+    function numPrefix(i) {
+        return NUM_EMOJIS[i] || `${i + 1})`;
+    }
+
     function buildCheckoutMessage() {
         const cart = loadCart();
-        const lines = ['Hola Rafael 👋, quiero hacer este pedido:'];
-        let sum = 0;
+        const ref = makeOrderRef();
+        const when = fmtDateTime();
+
+        // Construir la lista de items y acumular totales.
+        const items = [];
+        let totalUnits = 0;
+        let subtotalAll = 0;
+
         Object.keys(cart).forEach(id => {
             const p = getProduct(id);
             if (!p) return;
             const qty = cart[id];
+            if (qty <= 0) return;
             const sub = p.price * qty;
-            sum += sub;
-            lines.push(`• ${qty} × ${p.name} (${p.weight}) — S/ ${sub}`);
+            totalUnits += qty;
+            subtotalAll += sub;
+            items.push({ p, qty, sub });
         });
-        lines.push('');
-        lines.push(`*Total: S/ ${sum}*`);
-        lines.push('');
-        lines.push('¿Puedo recogerlo en persona 🏪 o prefieres coordinar envío 📦? Quedo atento.');
-        return lines.join('\n');
+
+        const uniqueProducts = items.length;
+
+        // --- Construcción del mensaje ---
+        const L = [];
+        L.push('🍫 *PEDIDO RAFAEL — Chocolate del Cuzco*');
+        L.push('━━━━━━━━━━━━━━━━━━━━━');
+        L.push(`🔖 Ref: *${ref}*`);
+        L.push(`📅 ${when}`);
+        L.push('');
+        L.push('¡Hola Rafael! 👋');
+        L.push('Quisiera confirmar el siguiente pedido:');
+        L.push('');
+        L.push('━━━━━━━━━━━━━━━━━━━━━');
+        L.push('🛒 *DETALLE DEL PEDIDO*');
+        L.push('━━━━━━━━━━━━━━━━━━━━━');
+
+        items.forEach((it, i) => {
+            const { p, qty, sub } = it;
+            const unidad = qty === 1 ? 'ud.' : 'uds.';
+            L.push('');
+            L.push(`${numPrefix(i)} *${p.name}* — ${p.weight}`);
+            L.push(`   🔢 Cantidad: ${qty} ${unidad}`);
+            L.push(`   💵 Precio unit.: S/ ${fmtPrice(p.price)}`);
+            L.push(`   ➕ Subtotal: *S/ ${fmtPrice(sub)}*`);
+        });
+
+        L.push('');
+        L.push('━━━━━━━━━━━━━━━━━━━━━');
+        L.push(`📦 Productos distintos: *${uniqueProducts}*`);
+        L.push(`🔢 Unidades totales: *${totalUnits}*`);
+        L.push(`💰 *TOTAL A PAGAR: S/ ${fmtPrice(subtotalAll)}*`);
+        L.push('━━━━━━━━━━━━━━━━━━━━━');
+        L.push('');
+        L.push('*📍 ¿Cómo deseo recibirlo?*');
+        L.push('🏪 Recojo en persona (Cuzco)');
+        L.push('📦 Envío a mi domicilio');
+        L.push('');
+        L.push('*💳 Método de pago preferido:*');
+        L.push('📱 Yape / Plin');
+        L.push('🏦 Transferencia bancaria');
+        L.push('💵 Efectivo contra entrega');
+        L.push('');
+        L.push('¿Me confirmas disponibilidad y tiempos de entrega? ¡Gracias! 🙌');
+
+        return L.join('\n');
     }
 
     function checkout() {
