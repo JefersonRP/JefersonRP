@@ -1,6 +1,6 @@
-# Las Cosas de Héctor
+# Rafael
 
-SPA (Single Page Application) inspirada en [lascosasdehector.com](https://www.lascosasdehector.com), construida con HTML, CSS y JavaScript puros en un único archivo.
+SPA (Single Page Application) de chocolate orgánico del Cuzco, construida con HTML, CSS y JavaScript puros en un único archivo.
 
 ## Descripción
 
