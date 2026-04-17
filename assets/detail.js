@@ -80,7 +80,9 @@
     const stockText = product.stock <= 6
         ? `Últimas ${product.stock} unidades`
         : `En stock (${product.stock} disponibles)`;
-    const waText = encodeURIComponent(`Hola Rafael, me interesa el ${product.name} (${product.weight}, ${CURRENCY_SYMBOL[product.currency]} ${product.price}). ¿Está disponible?`);
+    // El mensaje se arma en el momento del clic para incluir la cantidad
+    // actual del selector. Usamos un href placeholder para mantener la
+    // semántica de enlace y evitar que se abra WhatsApp con datos obsoletos.
 
     info.innerHTML = `
         <span class="eyebrow"><span class="dot"></span>${product.badge}</span>
@@ -101,12 +103,12 @@
                 </div>
             </div>
             <div class="buy-actions">
-                <a class="btn btn-whatsapp" href="https://wa.me/${WA_NUMBER}?text=${waText}" target="_blank" rel="noopener">
+                <button type="button" class="btn btn-whatsapp" id="pdpBuyNowBtn">
                     <svg viewBox="0 0 32 32" width="18" height="18" fill="currentColor" aria-hidden="true">
                         <path d="M19.1 17.3c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.1s-.8 1-1 1.2c-.2.2-.4.2-.7.1-.3-.2-1.2-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.2-.2.2-.3.3-.5.1-.2.1-.4 0-.5-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1 2.9 1.2 3.1c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.3-.6-.4zM16 3C8.8 3 3 8.8 3 16c0 2.3.6 4.4 1.7 6.3L3 29l6.8-1.7c1.8 1 3.9 1.6 6.2 1.6 7.2 0 13-5.8 13-13S23.2 3 16 3zm0 23.6c-2.1 0-4-.6-5.6-1.5l-.4-.2-4 1 1.1-3.9-.3-.4C5.7 20 5 18.1 5 16c0-6.1 4.9-11 11-11s11 4.9 11 11-4.9 10.6-11 10.6z"/>
                     </svg>
                     Comprar por WhatsApp
-                </a>
+                </button>
                 <button class="btn btn-primary" id="pdpAddBtn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                     Añadir al carrito
@@ -132,6 +134,11 @@
     document.getElementById('pdpAddBtn').addEventListener('click', () => {
         if (window.Cart && typeof window.Cart.add === 'function') {
             window.Cart.add(product.id, qty);
+        }
+    });
+    document.getElementById('pdpBuyNowBtn').addEventListener('click', () => {
+        if (window.Cart && typeof window.Cart.buyNow === 'function') {
+            window.Cart.buyNow(product, qty);
         }
     });
 

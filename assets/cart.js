@@ -173,12 +173,22 @@
         document.getElementById('drawerOverlay')?.classList.remove('active');
     }
 
-    // Formatea números como precio: "25" -> "25.00"
+    // ------------------------------------------------------------------
+    //  Constructor de mensaje de WhatsApp
+    //  Nota sobre emojis: WhatsApp renderiza bien los emojis estándar de
+    //  Unicode 6.0 (👋, 🙏). Los emojis compuestos como "1️⃣" (dígito +
+    //  U+20E3) se rompen en la vista previa de wa.me y en algunos teclados
+    //  antiguos, por eso aquí usamos únicamente los dos más comunes y
+    //  construimos el resto con caracteres tipográficos universales
+    //  (━ U+2501 box-drawing, · U+00B7 middle-dot, — U+2014 em-dash).
+    // ------------------------------------------------------------------
+
+    const SEP = '━━━━━━━━━━━━━━━━━━━━━';
+
     function fmtPrice(n) {
         return Number(n).toFixed(2);
     }
 
-    // Genera una referencia corta para el pedido: "R-260417-7A3B"
     function makeOrderRef() {
         const d = new Date();
         const ymd =
@@ -189,12 +199,11 @@
         return `R-${ymd}-${rand}`;
     }
 
-    // Fecha y hora amigables para la cabecera del pedido (es-PE).
     function fmtDateTime() {
         try {
             return new Date().toLocaleString('es-PE', {
                 day: '2-digit',
-                month: 'long',
+                month: 'short',
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
@@ -205,78 +214,106 @@
         }
     }
 
-    // Numeración visual con emojis del 1 al 10; después cae a texto plano.
-    const NUM_EMOJIS = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
-    function numPrefix(i) {
-        return NUM_EMOJIS[i] || `${i + 1})`;
+    // Renderiza el bloque de detalle de un ítem. Mismo formato para
+    // carrito y compra directa para mantener consistencia visual.
+    function renderItemBlock(p, qty, index) {
+        const sub = p.price * qty;
+        const unidad = qty === 1 ? 'ud.' : 'uds.';
+        return [
+            `${index + 1}) *${p.name}* — ${p.weight}`,
+            `   · Cantidad: ${qty} ${unidad}`,
+            `   · Precio unitario: S/ ${fmtPrice(p.price)}`,
+            `   · Subtotal: *S/ ${fmtPrice(sub)}*`,
+        ].join('\n');
+    }
+
+    // Construye el mensaje completo a partir de una lista [{p, qty}, …].
+    // `title` e `intro` permiten diferenciar "pedido" (carrito) de
+    // "consulta de compra" (producto individual).
+    function buildMessage(items, { title, intro, closing }) {
+        const ref = makeOrderRef();
+        const when = fmtDateTime();
+
+        const validItems = items.filter(it => it && it.p && it.qty > 0);
+        let totalUnits = 0;
+        let totalAmount = 0;
+        validItems.forEach(it => {
+            totalUnits += it.qty;
+            totalAmount += it.p.price * it.qty;
+        });
+
+        const L = [];
+        L.push(`*${title}*`);
+        L.push(SEP);
+        L.push(`Referencia: *${ref}*`);
+        L.push(`Fecha: ${when}`);
+        L.push('');
+        L.push('Hola Rafael 👋');
+        L.push(intro);
+        L.push('');
+        L.push(SEP);
+        L.push('*DETALLE DEL PEDIDO*');
+        L.push(SEP);
+        L.push('');
+
+        validItems.forEach((it, i) => {
+            L.push(renderItemBlock(it.p, it.qty, i));
+            L.push('');
+        });
+
+        L.push(SEP);
+        if (validItems.length > 1) {
+            L.push(`Productos distintos: *${validItems.length}*`);
+        }
+        L.push(`Unidades totales: *${totalUnits}*`);
+        L.push('');
+        L.push(`*TOTAL A PAGAR: S/ ${fmtPrice(totalAmount)}*`);
+        L.push(SEP);
+        L.push('');
+        L.push('*¿Cómo deseo recibirlo?*');
+        L.push('· Recojo en persona (Cuzco)');
+        L.push('· Envío a mi domicilio');
+        L.push('');
+        L.push('*Método de pago preferido:*');
+        L.push('· Yape / Plin');
+        L.push('· Transferencia bancaria');
+        L.push('· Efectivo contra entrega');
+        L.push('');
+        L.push(closing);
+
+        return L.join('\n');
     }
 
     function buildCheckoutMessage() {
         const cart = loadCart();
-        const ref = makeOrderRef();
-        const when = fmtDateTime();
-
-        // Construir la lista de items y acumular totales.
-        const items = [];
-        let totalUnits = 0;
-        let subtotalAll = 0;
-
-        Object.keys(cart).forEach(id => {
-            const p = getProduct(id);
-            if (!p) return;
-            const qty = cart[id];
-            if (qty <= 0) return;
-            const sub = p.price * qty;
-            totalUnits += qty;
-            subtotalAll += sub;
-            items.push({ p, qty, sub });
+        const items = Object.keys(cart).map(id => ({
+            p: getProduct(id),
+            qty: cart[id],
+        }));
+        return buildMessage(items, {
+            title: 'PEDIDO RAFAEL — Chocolate del Cuzco',
+            intro: 'Quisiera confirmar el siguiente pedido:',
+            closing: '¿Me confirmas disponibilidad y tiempos de entrega? ¡Muchas gracias! 🙏',
         });
+    }
 
-        const uniqueProducts = items.length;
-
-        // --- Construcción del mensaje ---
-        const L = [];
-        L.push('🍫 *PEDIDO RAFAEL — Chocolate del Cuzco*');
-        L.push('━━━━━━━━━━━━━━━━━━━━━');
-        L.push(`🔖 Ref: *${ref}*`);
-        L.push(`📅 ${when}`);
-        L.push('');
-        L.push('¡Hola Rafael! 👋');
-        L.push('Quisiera confirmar el siguiente pedido:');
-        L.push('');
-        L.push('━━━━━━━━━━━━━━━━━━━━━');
-        L.push('🛒 *DETALLE DEL PEDIDO*');
-        L.push('━━━━━━━━━━━━━━━━━━━━━');
-
-        items.forEach((it, i) => {
-            const { p, qty, sub } = it;
-            const unidad = qty === 1 ? 'ud.' : 'uds.';
-            L.push('');
-            L.push(`${numPrefix(i)} *${p.name}* — ${p.weight}`);
-            L.push(`   🔢 Cantidad: ${qty} ${unidad}`);
-            L.push(`   💵 Precio unit.: S/ ${fmtPrice(p.price)}`);
-            L.push(`   ➕ Subtotal: *S/ ${fmtPrice(sub)}*`);
+    function buildProductMessage(product, qty) {
+        return buildMessage([{ p: product, qty }], {
+            title: 'CONSULTA DE COMPRA — Rafael Chocolate',
+            intro: 'Me interesa adquirir el siguiente producto:',
+            closing: '¿Está disponible para coordinar? ¡Gracias! 🙏',
         });
+    }
 
-        L.push('');
-        L.push('━━━━━━━━━━━━━━━━━━━━━');
-        L.push(`📦 Productos distintos: *${uniqueProducts}*`);
-        L.push(`🔢 Unidades totales: *${totalUnits}*`);
-        L.push(`💰 *TOTAL A PAGAR: S/ ${fmtPrice(subtotalAll)}*`);
-        L.push('━━━━━━━━━━━━━━━━━━━━━');
-        L.push('');
-        L.push('*📍 ¿Cómo deseo recibirlo?*');
-        L.push('🏪 Recojo en persona (Cuzco)');
-        L.push('📦 Envío a mi domicilio');
-        L.push('');
-        L.push('*💳 Método de pago preferido:*');
-        L.push('📱 Yape / Plin');
-        L.push('🏦 Transferencia bancaria');
-        L.push('💵 Efectivo contra entrega');
-        L.push('');
-        L.push('¿Me confirmas disponibilidad y tiempos de entrega? ¡Gracias! 🙌');
-
-        return L.join('\n');
+    // Compra directa desde la ficha de producto sin pasar por el carrito.
+    function buyNow(productOrId, qty) {
+        const product = typeof productOrId === 'object'
+            ? productOrId
+            : getProduct(productOrId);
+        const q = Math.max(1, parseInt(qty, 10) || 1);
+        if (!product) return;
+        const text = encodeURIComponent(buildProductMessage(product, q));
+        window.open(`https://wa.me/${WA_NUMBER}?text=${text}`, '_blank', 'noopener');
     }
 
     function checkout() {
@@ -297,7 +334,10 @@
         render,
         count: () => cartCount(loadCart()),
         load: loadCart,
-        save: saveCart
+        save: saveCart,
+        buyNow,
+        buildProductMessage,
+        buildCheckoutMessage,
     };
 
     // Init
